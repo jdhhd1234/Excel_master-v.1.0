@@ -1,39 +1,67 @@
-# app.py
 import streamlit as st
 import pandas as pd
 import io
 
-st.set_page_config(page_title="Excel 필터링 도구", layout="centered")
+st.set_page_config(page_title="Excel Master", layout="centered")
+st.title("📊 Excel Master v1.0")
 
-st.title("📊 엑셀 A열 필터링 도구 (웹버전)")
+tab1, tab2 = st.tabs(["✅ 엑셀 필터링", "🔁 CSV → Excel 변환"])
 
-uploaded_file = st.file_uploader("엑셀 파일을 업로드하세요", type=["xlsx"])
+# -------------------
+# ✅ 엑셀 필터링 탭
+# -------------------
+with tab1:
+    uploaded_excel = st.file_uploader("엑셀 파일 업로드", type=["xlsx"])
+    if uploaded_excel:
+        try:
+            df = pd.read_excel(uploaded_excel, engine="openpyxl")
+            st.success("파일 로드 성공 ✅")
+            st.write("미리보기", df.head())
 
-if uploaded_file:
-    try:
-        df = pd.read_excel(uploaded_file)
-        if df.empty:
-            st.error("엑셀 파일이 비어 있습니다.")
-        else:
-            a_col_values = df.iloc[:, 0].dropna().unique().tolist()
-            selected = st.multiselect("A열 값 중 필터링할 항목을 선택하세요", sorted(a_col_values))
+            col1 = st.selectbox("첫 번째 필터 컬럼", df.columns, key="col1")
+            col2 = st.selectbox("두 번째 필터 컬럼 (선택)", ["(사용 안함)"] + list(df.columns), key="col2")
 
-            if selected:
-                filtered_df = df[df.iloc[:, 0].isin(selected)]
+            if col1:
+                val1 = st.multiselect(f"'{col1}'에서 선택", df[col1].dropna().unique())
 
-                st.success(f"✅ {len(filtered_df)}개의 행이 필터링되었습니다.")
-                st.dataframe(filtered_df.head(20))
+            if col2 and col2 != "(사용 안함)":
+                val2 = st.multiselect(f"'{col2}'에서 선택", df[col2].dropna().unique())
+            else:
+                val2 = None
 
-                # 다운로드 버튼
-                to_excel = io.BytesIO()
-                filtered_df.to_excel(to_excel, index=False)
-                to_excel.seek(0)
+            if st.button("필터링 실행"):
+                filtered_df = df[df[col1].isin(val1)] if val1 else df
+                if val2 and col2 != "(사용 안함)":
+                    filtered_df = filtered_df[filtered_df[col2].isin(val2)]
+                st.write(f"🔍 추출된 행 수: {len(filtered_df)}")
+                st.dataframe(filtered_df)
 
-                st.download_button(
-                    label="📥 필터된 데이터 다운로드",
-                    data=to_excel,
-                    file_name="필터결과.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-    except Exception as e:
-        st.error(f"파일 처리 중 오류 발생: {e}")
+                buffer = io.BytesIO()
+                filtered_df.to_excel(buffer, index=False, engine="openpyxl")
+                st.download_button("📥 결과 다운로드", data=buffer.getvalue(),
+                                   file_name="필터결과.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        except Exception as e:
+            st.error(f"❌ 오류 발생: {e}")
+
+# -------------------
+# 🔁 CSV → Excel 변환 탭
+# -------------------
+with tab2:
+    uploaded_csv = st.file_uploader("CSV 파일 업로드", type=["csv"], key="csv")
+    if uploaded_csv:
+        try:
+            # 자동 인코딩 감지
+            try:
+                df_csv = pd.read_csv(uploaded_csv, encoding="utf-8")
+            except UnicodeDecodeError:
+                df_csv = pd.read_csv(uploaded_csv, encoding="cp949")
+
+            st.success("CSV 파일 로드 성공 ✅")
+            st.write("미리보기", df_csv.head())
+
+            buffer_csv = io.BytesIO()
+            df_csv.to_excel(buffer_csv, index=False, engine="openpyxl")
+            st.download_button("📥 Excel로 저장", data=buffer_csv.getvalue(),
+                               file_name="변환된_엑셀.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        except Exception as e:
+            st.error(f"❌ 변환 오류: {e}")
