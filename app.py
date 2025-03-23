@@ -124,13 +124,10 @@ if st.session_state.authenticated:
                 st.error(f"❌ 변환 오류: {e}")
 """
 
-# 저장
-app_path = Path("/mnt/data/app.py")
+
+# 현재 작업 디렉토리에 저장
+app_path = Path("app.py")
 with open(app_path, "w", encoding="utf-8") as f:
     f.write(app_with_email_auth)
-
-app_path = Path("/mnt/data/app.py")  # 👉 저장 경로 설정
-with open(app_path, "w", encoding="utf-8") as f:
-    f.write(app_with_email_auth)     # 👉 해당 경로에 코드 내용 저장
 
 print("✅ app.py 저장 완료:", app_path)
